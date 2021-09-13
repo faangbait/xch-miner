@@ -1,0 +1,133 @@
+#cloud-config
+autoinstall:
+  apt:
+    geoip: true
+    preserve_sources_list: false
+    primary:
+    - arches: [amd64, i386]
+      uri: http://us.archive.ubuntu.com/ubuntu
+    - arches: [default]
+      uri: http://ports.ubuntu.com/ubuntu-ports
+  identity: {hostname: chia, password: $6$s1fA6O8JVsAhhJKE$aeE2N.NGKcF21gO3loGG/J1XS4TupYj6lSRNZOH5e1fQPjW641YqexUpBO6KvPHSCLysZCWkdoxVGykq7io8f1,
+    realname: chia, username: chia}
+  keyboard: {layout: us, toggle: null, variant: ''}
+  locale: en_US
+  network:
+    ethernets:
+      eno1: {dhcp4: true}
+      eno2: {dhcp4: true}
+      eno3: {dhcp4: true}
+      eno4: 
+        dhcp4: no
+        dhcp6: no
+        gateway4: 184.105.178.97
+        nameservers:
+          addresses: [8.8.8.8, 4.4.4.4]
+        addresses: [184.105.178.118/27]
+    version: 2
+  ssh:
+    allow-pw: true
+    authorized-keys: ['ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOn0nNM1G8v/QzxNiDB2zW+JCosf8MK/sjxBBh2mFJwj
+        trhr@github/50361165 # ssh-import-id gh:trhr']
+    install-server: true
+  storage:
+    layout:
+      name: direct
+    swap:
+      size: 0
+    config:
+    - id: disk0
+      path: /dev/sda
+      type: disk
+      ptable: gpt
+      grub_device: true
+      wipe: superblock
+#    - id: bios_boot_partition
+#      type: partition
+#      size: 1MB
+#      device: disk0
+#      flag: bios_grub
+
+    - id: efi_partition
+      type: partition
+      size: 512MB
+      device: disk0
+      flag: boot
+    - id: efi_vfat
+      type: format
+      fstype: fat32
+      volume: efi_partition
+    - id: efi_partition
+      type: mount
+      path: /boot/efi
+      grub_device: true
+      device: efi_vfat
+
+    - id: boot_partition
+      type: partition
+      size: 5GB
+      device: disk0
+    - id: boot_ext4
+      type: format
+      fstype: ext4
+      volume: boot_partition
+    - id: boot_mount
+      type: mount
+      path: /boot
+      device: boot_ext4
+
+    - id: root_partition
+      type: partition
+      size: -1
+      device: disk0
+    - id: root_ext4
+      type: format
+      fstype: ext4
+      volume: root_partition
+    - id: root_mount
+      type: mount
+      path: /
+      device: root_partition
+
+  late-commands:
+  - curtin in-target -- apt-get install -y git ansible
+  - curtin in-target -- git clone --recursive https://github.com/trhr/xch-miner.git /home/chia/xch-miner
+
+# Replaced by ansible
+#  - cd /target/home/chia/chia-silverman/chia-silverman
+#  - echo 'deb http://linux.dell.com/repo/community/openmanage/10100/focal focal main' | tee /etc/apt/sources.list.d/linux.dell.com.sources.list
+#  - wget https://linux.dell.com/repo/pgp_pubkeys/0x1285491434D8786F.asc
+#  - apt-key add 0x1285491434D8786F.asc
+#  - ufw allow 'Nginx HTTP'
+#  - mv chia.service /target/home/chia
+#  - ln -s /target/home/chia/chia.service /target/etc/systemd/system/chia.service
+#  - systemctl daemon-reload
+#  - wget https://github.com/trapexit/mergerfs/releases/download/2.32.6/mergerfs_2.32.6.ubuntu-focal_amd64.deb
+#  - dpkg -i mergerfs_2.32.6.ubuntu-focal_amd64.deb
+#  - cat fstab_concat >> /target/etc/fstab
+#  - mv 60-ssd-scheduler.rules /target/etc/udev/rules.d/
+#  - mv fstrim /target/etc/cron.daily/
+#  - mv stat_diskspace /target/etc/cron.hourly/
+#  - mv chia_plots_check /target/etc/cron.daily/
+#  - mv plot_plotcheck.gnu /target/etc/cron.daily/
+#  - mv plot_diskspace.gnu /target/etc/cron.daily/
+#  - mv index.html /target/var/www/html/index.html
+#  - mv start_plotter.sh /target/home/chia
+#  - mv ProofOfSpace /target/home/chia
+#  - cd /target/home/chia
+#  - git clone https://github.com/madMAx43v3r/chia-plotter.git
+#  - cd chia-plotter
+#  - git submodule update --init
+#  - bash make_devel.sh
+#  - cd /target/mnt
+#  - mkdir -p process sda sdb sdc sdd sde sdf chia tmpfs
+#  - chattr +i *
+#  - chown -R chia:chia *
+#  - mount process sdia sdb sdc sdd sde sdf chia tmpfs
+#  - chown -R chia:chia *
+#  - apt update
+#  - apt install -y srvadmin-all
+#  - apt upgrade
+#  - reboot
+  version: 1
+

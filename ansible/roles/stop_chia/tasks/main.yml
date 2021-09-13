@@ -1,0 +1,7 @@
+---
+- name: Stop chia service
+  systemd:
+    name: chia
+    enabled: yes
+    state: stopped
+  ignore_errors: yes

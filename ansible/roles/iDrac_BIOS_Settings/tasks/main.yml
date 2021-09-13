@@ -1,0 +1,137 @@
+---
+    - name: Add OpenManage Key
+      apt_key:
+        url: https://linux.dell.com/repo/pgp_pubkeys/0x1285491434D8786F.asc
+      
+    - name: Add OpenManage Repo_Focal
+      apt_repository:
+        codename: focal
+        filename: linux.dell.com.sources
+        repo: deb http://linux.dell.com/repo/community/openmanage/10101/focal focal main
+        state: present
+
+    - name: Install Dell iDRAC and All server Utilities
+      apt:
+        name: srvadmin-all
+        state: present
+
+    - name: Install Dell iDRAC RACADM
+      apt:
+        name: srvadmin-idracadm8
+        state: present
+ 
+    - name: Check for any Scheduled Jobs
+      raw: racadm jobqueue view
+      register: pre_jobqueue_status
+    - name: debug | Check for any Scheduled Jobs
+      debug: var=pre_jobqueue_status.stdout_lines
+
+    - name: Reboot the iDRAC to complete the Scheduled jobs
+      raw: racadm serveraction powercycle
+      register: reboot_status
+      failed_when: "'ERROR' in reboot_status.stdout or 'Invalid' in reboot_status.stdout"
+      when: 'pre_jobqueue_status.stdout.find("Scheduled") >=0 or pre_jobqueue_status.stdout.find("New") >=0'
+    - name: debug | Reboot iDrac to complete the Scheduled jobs
+      debug: var=reboot_status.stdout_lines
+
+    - name: Wait for all the jobs to be completed
+      raw: racadm jobqueue view
+      register: pre_jobqueue_completion
+      until: pre_jobqueue_completion.stdout.find("Running") <= 0 and pre_jobqueue_completion.stdout.find("Scheduled") <= 0 and pre_jobqueue_completion.stdout.find("New") <= 0
+      retries: 20
+      delay: 30
+    - name: debug | Wait for all the jobs to be completed
+      debug: var=pre_jobqueue_completion.stdout_lines
+
+    - name: Get Status of the Target
+      raw: racadm get "{{ item.target }}"
+      with_items:
+        - "{{ target_array }}"
+      register: target_status
+    - name: debug | Target_set values
+      debug: msg="{{ target_array | map(attribute='target_set') | list }}"
+    - name: debug | Get Status of the Target
+      debug: msg="{{ target_status.results | map(attribute='stdout_lines') | list }}"
+
+    - name: Executing racadm set on the targets to have the expected value
+      raw: racadm set "{{ item.0.target }}" "{{ item.0.value }}"
+      register: set_status
+      failed_when: '"ERROR" in set_status.stdout or "Invalid" in set_status.stdout'
+      when: "'Pending' in item.1.stdout_lines or ( (item.0.target_set ~ '=' ~ item.0.value) not in item.1.stdout_lines )"
+      with_together:
+        - "{{ target_array }}"
+        - "{{ target_status.results }}"
+    - name: debug | Executing racadm set on the targets to have the expected value
+      debug: msg="{{ set_status.results | map(attribute='stdout') | list }}"
+
+    - name: Creating a job for the new target change
+      raw: racadm jobqueue create "{{ item.0.job_target }}"
+      register: jobcreate_status
+      failed_when: '"ERROR" in jobcreate_status.stdout or "Invalid" in jobcreate_status.stdout'
+      when: item|changed
+      with_items:
+        - "{{ set_status.results }}"
+    - name: debug | Creating a job for the new target change
+      debug: msg="{{ jobcreate_status.results | map(attribute='stdout') | list }}"
+
+
+    - name: Powercycle the server for the new job execution
+      raw: racadm serveraction powercycle
+      register: reboot_status
+      failed_when: '"ERROR" in reboot_status.stdout or "Invalid" in reboot_status.stdout'
+      when: item|changed
+      with_items:
+        - "{{ jobcreate_status.results }}"
+    - name: debug | Powercycle the server for the new job execution
+      debug: msg="{{ reboot_status.results|map(attribute='stdout')|list}}"
+
+    - name: Wait for all the executed jobs to be completed
+      raw: racadm jobqueue view
+      register: jobqueue_completion
+      until: jobqueue_completion.stdout.find("Running") <= 0 and jobqueue_completion.stdout.find("Scheduled") <= 0 and jobqueue_completion.stdout.find("New") <= 0
+      retries: 20
+      delay: 30
+      when: "reboot_status.results | selectattr('stdout', 'defined') | map(attribute='stdout') | select('search', 'power operation') | list | length > 0"
+ 
+    - name: Get racadm Boot Sequence Status
+      raw: racadm get BIOS.BiosBootSettings.UefiBootSeq
+      register: get_bootseq_status
+      failed_when: '"ERROR" in get_bootseq_status.stdout or "Invalid" in get_bootseq_status.stdout'
+    - name: debug | Get racadm Boot Sequence Status
+      debug: var=get_bootseq_status.stdout_lines
+
+    - name: Change Boot Sequence Status, If it doesn't match the required preset
+      raw: racadm set BIOS.BiosBootSettings.UefiBootSeq "RAID.Integrated.1-1,NIC.PxeDevice.1-1"
+      register: set_bootseq_status
+      failed_when: '"ERROR" in set_bootseq_status.stdout or "BOOT016" in set_bootseq_status.stdout'
+      when: '"RAID.Integrated.1-1,NIC.PxeDevice.1-1" not in get_bootseq_status.stdout or "Pending" in get_bootseq_status.stdout'
+    - name: debug | Change Boot Sequence Status, If it doesn't match the required preset
+      debug: var=set_bootseq_status.stdout_lines
+
+    - name: Create a job for boot sequence change
+      raw: racadm jobqueue create BIOS.Setup.1-1
+      register: jobstatus_set_bootseq
+      failed_when: '"ERROR" in jobstatus_set_bootseq.stdout'
+      when: set_bootseq_status | changed
+    - name: debug | Create a job for boot sequence change
+      debug: var=jobstatus_set_bootseq.stdout_lines
+
+    - name: Powercycle the server to execute changed Boot Sequence Job
+      raw: racadm serveraction powercycle
+      register: reboot_status
+      failed_when: '"ERROR" in reboot_status.stdout'
+      when: '(jobstatus_set_bootseq | changed) and "Successfully scheduled a job" in jobstatus_set_bootseq.stdout'
+    - name: debug | Powercycle the server to execute changed Boot Sequence Job
+      debug: var=reboot_status.stdout_lines
+
+    - name: Wait for Boot Sequence Job Execution to be completed
+      raw: racadm jobqueue view
+      register: jobqueue_completion
+      until: jobqueue_completion.stdout.find("Running") <= 0 and jobqueue_completion.stdout.find("Scheduled") <= 0 and jobqueue_completion.stdout.find("New") <= 0
+      retries: 20
+      delay: 30
+      when: '(reboot_status | changed) and "power operation" in reboot_status.stdout'
+      ignore_errors: true
+    - name: debug | Wait for Boot Sequence Job Execution to be completed
+      debug: var=jobqueue_completion.stdout_lines
+

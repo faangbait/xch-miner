@@ -1,0 +1,160 @@
+---
+- name: Clone/update repo
+  git:
+    repo: https://github.com/trhr/xch-miner.git
+    dest: /home/chia/xch-miner
+    track_submodules: yes
+  environment:
+    GIT_TERMINAL_PROMPT: 0
+
+- name: Build madmax
+  raw: /home/chia/xch-miner/madmax/make_devel.sh
+
+- name: Move file
+  copy:
+    src: /home/chia/xch-miner/madmax/build/chia_plot
+    dest: /home/chia/plotter
+    owner: chia
+    group: chia
+    mode: 0755
+
+- name: Unmount any mounted drives
+  mount:
+    path: "/mnt/{{ item }}"
+    state: unmounted
+  loop: '{{ plot_mounts }}'
+
+- name: Remove mounted drive locations
+  file:
+    path: "/mnt/{{ item }}"
+    state: absent
+  loop: '{{ plot_mounts }}'
+  
+- name: set keys
+  copy:
+    content: |
+      export FARMERKEY={{ farmer_key }}
+      export POOLKEY={{ pool_key }}
+  dest: /etc/profile.d/chia.sh
+
+- name: install packages
+  apt:
+    pkg:
+      - git
+      - ansible
+      - mdadm
+      - nginx
+      - gnuplot-nox
+      - wget
+      - xfsprogs
+      - libsodium-dev
+      - cmake
+      - g++
+      - build-essential
+      - mergerfs
+    state: latest
+    update_cache: yes
+    
+- name: update packages
+  apt:
+    state: latest
+    name: "*"
+    update_cache: no
+
+- name: Create filesystem on installed drives
+  community.general.filesystem:
+    dev: '/dev/{{ item }}'
+    fstype: xfs
+    opts: -m reflink=1
+  loop: '{{ plot_hard_disks }}'
+
+- name: Create service file
+  copy:
+    content: |
+      [Unit]
+      Description=Chia Mining
+      After=network.target
+
+      [Service]
+      WorkingDirectory=/home/chia
+      Type=simple
+      Restart=on-failure
+      User=root
+      TimeoutStopSec=40m
+      
+      ExecStartPre=/bin/bash -c "rm /mnt/tmpfs/* ; rm /mnt/process/* ; mdadm --stop /dev/md127 ; mdadm --assemble /dev/md0 /dev/nvme[0-1]n1p1 ; mount /dev/md0 /mnt/process/ ; exit 0"
+      
+      ExecStart=/home/chia/plotter -n -1 -r 28 -t /mnt/process/ -2 /mnt/tmpfs/ -d /mnt/chia/ -f {{ farmer_key }} -c {{ pool_key }}
+      
+
+      [Install]
+      WantedBy=multi-user.target
+
+    dest: /home/chia/chia.service
+    owner: chia
+    group: chia
+    mode: '0644'
+    
+- name: Link service file
+  file:
+    src: /home/chia/chia.service
+    dest: /etc/systemd/system/chia.service
+    state: link
+
+- name: Partition NVME drives
+  community.general.parted:
+    device: '{{ item }}'
+    number: 1
+    state: present
+    fs_type: ext4
+    label: gpt
+  loop:
+    - /dev/nvme0n1
+    - /dev/nvme1n1
+    
+- name: Check if RAID0 device exists
+  command: /usr/sbin/mdadm --detail /dev/md0
+  register: md0_result
+  ignore_errors: true
+
+
+- name: Create filesystem
+  filesystem:
+    fstype: ext4
+    dev: "/dev/md0"
+    opts: -m 0 -L process -b 4096 -E stride=128,stripe-width=256
+    
+- debug: var=md0_result.stdout_lines
+
+- name: Mount HDDs
+  mount:
+    path: "/mnt/{{ item }}"
+    src: "/dev/{{ item }}"
+    fstype: xfs
+    state: mounted
+    opts: defaults,noatime
+  loop: '{{ plot_hard_disks }}'
+
+- name: Mount Chia
+  mount:
+    path: "/mnt/chia"
+    src: "/mnt/sd*"
+    fstype: mergerfs
+    opts: allow_other,use_ino
+    state: mounted
+    
+- name: Mount TMPFS
+  mount:
+    path: "/mnt/tmpfs"
+    src: "tmpfs"
+    fstype: tmpfs
+    state: mounted
+    opts: defaults,noatime,nosuid,nodev,noexec,mode=0755,size=110G
+
+- name: Start chia service
+  systemd:
+    name: chia
+    daemon_reload: yes
+    scope: user
+    enabled: yes
+    state: started

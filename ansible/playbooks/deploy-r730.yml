@@ -1,0 +1,75 @@
+---
+- name: Racadm Setup
+  hosts: local
+  strategy: free
+  user: chia
+  become_user: root
+  become: yes
+  become_method: sudo
+  gather_facts: true
+
+  vars:
+    plot_hard_disks:
+      - sda
+    plot_mounts:
+      - sda
+      - sdb
+      - sdc
+      - sdd
+      - sde
+      - sdf
+      - process
+      - chia
+      - tmpfs
+    target_array:
+     
+      - { target: 'BIOS.BiosBootSettings.BootMode', job_target: 'Bios.Setup.1-1', target_set: 'BootMode', value: 'Uefi' }
+      - { target: 'BIOS.BiosBootSettings.BootSeqRetry', job_target: 'Bios.Setup.1-1', target_set: 'BootSeqRetry', value: 'Enabled' }
+      - { target: 'BIOS.BiosBootSettings.SetBootOrderEn', job_target: 'Bios.Setup.1-1', target_set: 'SetBootOrderEn', value: 'RAID.Integrated.1-1,NIC.PxeDevice.1-1' }
+      - { target: 'BIOS.IntegratedDevices.IntegratedNetwork1', job_target: 'Bios.Setup.1-1', target_set: 'IntegratedNetwork1', value: 'Enabled' }
+      - { target: 'BIOS.IntegratedDevices.IntegratedRaid', job_target: 'Bios.Setup.1-1', target_set: 'IntegratedRaid', value: 'Enabled' }
+      - { target: 'BIOS.IntegratedDevices.SnoopHldOff', job_target: 'Bios.Setup.1-1', target_set: 'SnoopHldOff', value: 'Roll1KCycles' }
+      - { target: 'BIOS.IntegratedDevices.SriovGlobalEnable', job_target: 'Bios.Setup.1-1', target_set: 'SriovGlobalEnable', value: 'Disabled' }
+      - { target: 'BIOS.IntegratedDevices.MmioAbove4Gb', job_target: 'Bios.Setup.1-1', target_set: 'MmioAbove4Gb', value: 'Enabled' }
+      - { target: 'BIOS.MemSettings.MemOpMode', job_target: 'Bios.Setup.1-1', target_set: 'MemOpMode', value: 'OptimizerMode' }
+      - { target: 'BIOS.MemSettings.MemTest', job_target: 'Bios.Setup.1-1', target_set: 'MemTest', value: 'Disabled' }
+      - { target: 'BIOS.MemSettings.NodeInterleave', job_target: 'Bios.Setup.1-1', target_set: 'NodeInterleave', value: 'Disabled' }
+      - { target: 'BIOS.MemSettings.SnoopMode', job_target: 'Bios.Setup.1-1', target_set: 'SnoopMode', value: 'EarlySnoop' }
+      - { target: 'BIOS.MiscSettings.ErrPrompt', job_target: 'Bios.Setup.1-1', target_set: 'ErrPrompt', value: 'Disabled' }
+      - { target: 'BIOS.MiscSettings.InSystemCharacterization', job_target: 'Bios.Setup.1-1', target_set: 'InSystemCharacterization', value: 'Disabled' }
+      - { target: 'BIOS.NetworkSettings.PxeDev1EnDis', job_target: 'Bios.Setup.1-1', target_set: 'PxeDev1EnDis', value: 'Enabled' }
+      - { target: 'BIOS.SysProfileSettings.PowerSaver', job_target: 'Bios.Setup.1-1', target_set: 'PowerSaver', value: 'Enabled' }
+      - { target: 'BIOS.SysProfileSettings.SysProfile', job_target: 'Bios.Setup.1-1', target_set: 'SysProfile', value: 'PerfPerWattOptimizedDapc' }
+      - { target: 'BIOS.ProcSettings.ProcVirtualization', job_target: 'Bios.Setup.1-1', target_set: 'ProcVirtualization', value: 'Disabled' }
+      - { target: 'BIOS.ProcSettings.ProcAdjCacheLine', job_target: 'Bios.Setup.1-1', target_set: 'ProcAdjCacheLine', value: 'Enabled' }
+      - { target: 'BIOS.ProcSettings.ControlledTurbo', job_target: 'Bios.Setup.1-1', target_set: 'ControlledTurbo', value: 'Enabled' }
+      - { target: 'BIOS.SlotBifurcation.Slot1Bif', job_target: 'Bios.Setup.1-1', target_set: 'Slot1Bif', value: 'x4x4' }
+      - { target: 'BIOS.SlotBifurcation.Slot2Bif', job_target: 'Bios.Setup.1-1', target_set: 'Slot2Bif', value: 'x4x4' }
+      - { target: 'BIOS.SlotBifurcation.Slot3Bif', job_target: 'Bios.Setup.1-1', target_set: 'Slot3Bif', value: 'x4x4' }
+      - { target: 'BIOS.SlotBifurcation.Slot4Bif', job_target: 'Bios.Setup.1-1', target_set: 'Slot4Bif', value: 'x4x4x4x4' }
+      - { target: 'BIOS.SlotBifurcation.Slot5Bif', job_target: 'Bios.Setup.1-1', target_set: 'Slot5Bif', value: 'x4x4' }
+      - { target: 'BIOS.SlotBifurcation.Slot6Bif', job_target: 'Bios.Setup.1-1', target_set: 'Slot6Bif', value: 'x4x4x4x4' }
+      - { target: 'System.LCD.Configuration', job_target: 'Bios.Setup.1-1', target_set: 'Configuration', value: 'System Watts' }
+      - { target: 'System.Power.Cap.Enable', job_target: 'Bios.Setup.1-1', target_set: 'Enable', value: 'True' }
+      - { target: 'System.Power.Cap.Watts', job_target: 'Bios.Setup.1-1', target_set: 'Watts', value: '273' }
+      - { target: 'LifeCycleController.LCAttributes.LifecycleControllerState', job_target: 'Bios.Setup.1-1', target_set: 'LifecycleControllerState', value: 'Enabled' }
+      - { target: 'LifeCycleController.LCAttributes.CollectSystemInventoryOnRestart', job_target: 'Bios.Setup.1-1', target_set: 'CollectSystemInventoryOnRestart', value: 'Disabled' }
+
+    mdadm_arrays:
+      - name: 'md0'
+        devices: 
+          - '/dev/nvme0n1p1'
+          - '/dev/nvme1n1p1'
+        filesystem: ext4
+        level: 0
+        mountpoint: '/mnt/process'
+        state: present
+
+  roles:
+    # - role: ../roles/Raid_R730 # If you run this you'll probably wipe your HDD. I did.
+    #   when: '(raid_force | bool)'
+    - role: ../roles/stop_chia
+    
+    - role: ../roles/iDrac_BIOS_Settings
+    - role: ahharu.mdadm
+    - role: ../roles/prepare_disks
