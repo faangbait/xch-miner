@@ -1,4 +1,23 @@
 ---
+- name: install packages
+  apt:
+    pkg:
+      - git
+      - ansible
+      - mdadm
+      - nginx
+      - gnuplot-nox
+      - wget
+      - xfsprogs
+      - libsodium-dev
+      - cmake
+      - g++
+      - build-essential
+      - mergerfs
+      - prometheus-node-exporter
+    state: latest
+    update_cache: yes
+
 - name: Clone/update madmax repo
   git:
     repo: https://github.com/trhr/xch-miner.git
@@ -48,25 +67,6 @@
       export FARMERKEY="{{ farmer_key }}"
       export POOLKEY="{{ pool_key }}"
   dest: /etc/profile.d/chia.sh
-
-- name: install packages
-  apt:
-    pkg:
-      - git
-      - ansible
-      - mdadm
-      - nginx
-      - gnuplot-nox
-      - wget
-      - xfsprogs
-      - libsodium-dev
-      - cmake
-      - g++
-      - build-essential
-      - mergerfs
-      - prometheus-node-exporter
-    state: latest
-    update_cache: yes
 
 - name: update packages
   apt:
