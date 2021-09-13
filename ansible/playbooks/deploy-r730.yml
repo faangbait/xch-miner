@@ -71,5 +71,6 @@
     - role: ../roles/stop_chia
     
     - role: ../roles/iDrac_BIOS_Settings
+    - role: ../roles/configure_server
     - role: ahharu.mdadm
     - role: ../roles/prepare_disks
