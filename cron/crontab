@@ -1,0 +1,3 @@
+59 23 * * * /home/chia/xch-miner/cron/fstrim
+0 0 * * * /home/chia/xch-miner/cron/plotcheck
+0 11 * * * /home/chia/xch-miner/cron/gnu_plotcheck

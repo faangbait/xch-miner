@@ -1,0 +1,76 @@
+---
+- name: Clone/update madmax repo
+  git:
+    repo: https://github.com/trhr/xch-miner.git
+    dest: /home/chia/xch-miner
+    track_submodules: yes
+  environment:
+    GIT_TERMINAL_PROMPT: 0
+
+- name: Build madmax
+  raw: /home/chia/xch-miner/madmax/make_devel.sh
+
+- name: Clone/update chiapos repo
+  git:
+    repo: https://github.com/Chia-Network/chiapos.git
+    dest: /home/chia/chiapos
+    track_submodules: yes
+  environment:
+    GIT_TERMINAL_PROMPT: 0
+
+- name: Build chiapos
+  raw: |
+    mkdir -p /home/chia/chiapos/build && \
+    cd /home/chia/chiapos/build && \
+    cmake .. && \
+    make -j8
+
+- name: Move madmax file
+  copy:
+    src: /home/chia/xch-miner/madmax/build/chia_plot
+    dest: /home/chia/plotter
+    owner: chia
+    group: chia
+    mode: 0755
+
+- name: Move chiapos file
+  copy:
+    src: /home/chia/chiapos/build/ProofOfSpace
+    dest: /home/chia/ProofOfSpace
+    owner: chia
+    group: chia
+    mode: 0755
+
+
+- name: set keys
+  copy:
+    content: |
+      export FARMERKEY="{{ farmer_key }}"
+      export POOLKEY="{{ pool_key }}"
+  dest: /etc/profile.d/chia.sh
+
+- name: install packages
+  apt:
+    pkg:
+      - git
+      - ansible
+      - mdadm
+      - nginx
+      - gnuplot-nox
+      - wget
+      - xfsprogs
+      - libsodium-dev
+      - cmake
+      - g++
+      - build-essential
+      - mergerfs
+      - prometheus-node-exporter
+    state: latest
+    update_cache: yes
+
+- name: update packages
+  apt:
+    state: latest
+    name: "*"
+    update_cache: no
+

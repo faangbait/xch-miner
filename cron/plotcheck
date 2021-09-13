@@ -1,0 +1,6 @@
+#!/bin/sh
+
+find /mnt/chia/* -mtime -1 | while read file
+do
+  /home/chia/ProofOfSpace -f "$file" check 100 | grep -oP "\d*(?=/100)" >> /home/chia/plot_check.dat
+done

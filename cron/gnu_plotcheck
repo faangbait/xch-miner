@@ -1,0 +1,13 @@
+#!/usr/bin/gnuplot
+
+set terminal png
+set output '/var/www/html/plots.png'
+set datafile separator ","
+set title "Plot validity"
+
+set ylabel "Passes"
+set yrange [ 0: 200 ]
+set key left
+set grid
+
+plot '/home/chia/plot_check.dat'
