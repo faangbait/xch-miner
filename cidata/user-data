@@ -1,6 +1,8 @@
 #cloud-config
 autoinstall:
   version: 1
+#  interactive-sections:
+#    - network
   apt:
     geoip: true
     preserve_sources_list: false
@@ -12,35 +14,31 @@ autoinstall:
   identity: 
     hostname: chia
     password: $6$s1fA6O8JVsAhhJKE$aeE2N.NGKcF21gO3loGG/J1XS4TupYj6lSRNZOH5e1fQPjW641YqexUpBO6KvPHSCLysZCWkdoxVGykq7io8f1
-    realname: chia
     username: chia
   network:
-    version: 2
-    ethernets:    
-      eno1: 
-        dhcp4: no
-      eno2: 
-        dhcp4: no
-      eno3:  
-        dhcp4: no
-        dhcp6: no
-        gateway4: 192.168.86.1
-        nameservers: 
-          addresses: 
-            - 8.8.8.8
-            - 4.4.4.4
-        addresses: 
-          - 192.168.86.118/24
-      eno4:
-        dhcp4: no
-        dhcp6: no
-        gateway4: 184.105.178.97
-        nameservers:
-          addresses: 
-            - 8.8.8.8
-            - 4.4.4.4
-        addresses: 
-          - 184.105.178.118/27
+    network:
+      version: 2
+      ethernets:
+        eno3:
+          dhcp4: no
+          dhcp6: no
+          gateway4: 192.168.86.1
+          nameservers:
+            addresses:
+              - 8.8.8.8
+              - 1.1.1.1
+          addresses:
+            - 192.168.86.247/24
+        eno4:
+          dhcp4: no
+          dhcp6: no
+          gateway4: 184.105.178.97
+          nameservers:
+            addresses:
+              - 8.8.8.8
+              - 1.1.1.1
+          addresses:
+            - 184.105.178.118/27
   ssh:
     allow-pw: true
     authorized-keys: 
@@ -51,55 +49,16 @@ autoinstall:
       name: lvm
       match:
         ssd: yes
-#  storage:
-#    layout:
-#      name: direct
-#    swap:
-#      size: 0
-#    config:
-#    - id: disk0
-#      path: /dev/sda
-#      type: disk
-#      ptable: gpt
-#      grub_device: true
-#      wipe: superblock
-#    - id: efi_partition
-#      type: partition
-#      size: 512MB
-#      device: disk0
-#      flag: boot
-#    - id: efi_vfat
-#      type: format
-#      fstype: fat32
-#      volume: efi_partition
-#    - id: efi_partition
-#      type: mount
-#      path: /boot/efi
-#      grub_device: true
-#      device: efi_vfat
-
-    - id: boot_partition
-      type: partition
-      size: 5GB
-      device: disk0
-    - id: boot_ext4
-      type: format
-      fstype: ext4
-      volume: boot_partition
-    - id: boot_mount
-      type: mount
-      path: /boot
-      device: boot_ext4
-
-    - id: root_partition
-      type: partition
-      size: -1
-      device: disk0
-    - id: root_ext4
-      type: format
-      fstype: ext4
-      volume: root_partition
-    - id: root_mount
-      type: mount
-      path: /
-      device: root_partition
+        serial: CT1000*
+  packages:
+    - git
+    - ansible
+    - mdadm
+    - nginx
+    - gnuplot-nox
+    - wget
+    - xfsprogs
+    - libsodium-dev
+    - cmake
+    - g++
+    - build-essential
