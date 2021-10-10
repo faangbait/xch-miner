@@ -101,6 +101,14 @@
     state: mounted
     opts: defaults,noatime,nosuid,nodev,noexec,mode=0755,size=110G
 
+- name: Mount Process
+  mount:
+    path: "/mnt/process"
+    src: "/dev/md0"
+    fstype: ext4
+    state: mounted
+    opts: defaults,noatime
+    
 - name: Start chia service
   systemd:
     name: chia
