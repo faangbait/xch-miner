@@ -1,0 +1,63 @@
+---
+- name: Grafana Host setup
+  hosts: local
+  strategy: free
+  user: chia
+  become_user: root
+  become: yes
+  become_method: sudo
+  gather_facts: true
+
+  tasks:
+  - name: Install dependencies
+    apt:
+      pkg: ["adduser", "libfontconfig1"]
+      state: latest
+
+  - name: Install grafana
+    apt:
+      deb: https://dl.grafana.com/oss/release/grafana_8.2.0_amd64.deb
+
+  - name: Start service
+    systemd:
+      name: grafana-server
+      daemon_reload: yes
+      enabled: yes
+      state: started
+
+  - name: Remove nginx 'default' site
+    file:
+      path: /etc/nginx/sites-enabled/default
+      state: absent
+
+  - name: Configure nginx reverse proxy
+    copy:
+      content: |
+        server {
+          listen 80;
+          server_name grafana;
+
+          location / {
+          proxy_pass         http://localhost:3000;
+          }
+
+          location /api/live {
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "Upgrade";
+            proxy_set_header Host $http_host;
+            proxy_pass http://localhost:3000/;
+          }
+        }
+      dest: /etc/nginx/sites-available/grafana
+
+  - name: Enable nginx reverse proxy
+    file:
+      src: /etc/nginx/sites-available/grafana
+      dest: /etc/nginx/sites-enabled/grafana
+      state: link
+
+  - name: Reload nginx
+    systemd:
+      name: nginx
+      state: reloaded
