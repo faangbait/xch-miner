@@ -15,6 +15,7 @@
       - build-essential
       - mergerfs
       - prometheus-node-exporter
+      - python3-dev
     state: latest
     update_cache: yes
 
@@ -39,10 +40,11 @@
 
 - name: Build chiapos
   raw: |
+    rm -rf /home/chia/chiapos/build && \
     mkdir -p /home/chia/chiapos/build && \
     cd /home/chia/chiapos/build && \
-    cmake .. && \
-    make -j8
+    cmake ../ && \
+    cmake --build . -- -j 6
 
 - name: Move madmax file
   copy:
