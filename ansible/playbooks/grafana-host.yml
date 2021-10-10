@@ -11,7 +11,7 @@
   tasks:
   - name: Install dependencies
     apt:
-      pkg: ["adduser", "libfontconfig1"]
+      pkg: ["adduser", "libfontconfig1", "prometheus"]
       state: latest
 
   - name: Install grafana
