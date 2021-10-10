@@ -113,6 +113,5 @@
   systemd:
     name: chia
     daemon_reload: yes
-    scope: user
     enabled: yes
     state: started
