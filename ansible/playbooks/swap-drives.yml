@@ -1,0 +1,173 @@
+---
+- name: Swap drives
+  hosts: local
+  strategy: free
+  user: chia
+  become_user: root
+  become: yes
+  become_method: sudo
+  gather_facts: true
+
+  vars:
+    plot_hard_disks:
+      - sdb
+      - sdc
+      - sdd
+      - sde
+      - sdf
+      - sdg
+      - sdh
+    plot_mounts:
+      - sdb
+      - sdc
+      - sdd
+      - sde
+      - sdf
+      - sdg
+      - sdh
+      - process
+      - chia
+      - tmpfs
+    mdadm_arrays:
+      - name: 'md0'
+        devices: 
+          - '/dev/nvme0n1p1'
+          - '/dev/nvme1n1p1'
+        filesystem: ext4
+        level: 0
+        mountpoint: '/mnt/process'
+        state: present
+    tasks:
+      - name: Stop chia service
+        systemd:
+          name: chia
+          enabled: yes
+          state: stopped
+        ignore_errors: yes
+      - name: Stop chia2 service
+        systemd:
+          name: chia2
+          enabled: yes
+          state: stopped
+        ignore_errors: yes
+      - name: Unmount any mounted drives
+        mount:
+          path: "/mnt/{{ item }}"
+          state: unmounted
+        loop: '{{ plot_mounts }}'
+      - name: Remove mounted drive locations
+        file:
+          path: "/mnt/{{ item }}"
+          state: absent
+        loop: '{{ plot_mounts }}'
+      - name: Create service file
+        copy:
+          content: |
+            [Unit]
+            Description=Chia Mining
+            After=network.target
+            [Service]
+            WorkingDirectory=/home/chia
+            Type=simple
+            Restart=on-failure
+            User=root
+            TimeoutStopSec=40m
+      
+            ExecStart=/home/chia/plotter -n -1 -r 28 -t /mnt/process/ -2 /mnt/tmpfs/ -d /mnt/chia/ -f {{ farmer_key }} -c {{ pool_key }}
+      
+            [Install]
+            WantedBy=multi-user.target
+          dest: /home/chia/chia.service
+          owner: chia
+          group: chia
+          mode: '0644'
+      - name: Create service file2
+        copy:
+          content: |
+            [Unit]
+            Description=Chia Mining
+            After=network.target
+            [Service]
+            WorkingDirectory=/home/chia
+            Type=simple
+            Restart=on-failure
+            User=root
+            TimeoutStopSec=40m
+      
+            ExecStart=/home/chia/plotter -n -1 -r 28 -t /mnt/process/ -2 /mnt/tmpfs/ -d /mnt/chia/ -f {{ farmer_key }} -c {{ pool_key }}
+      
+            [Install]
+            WantedBy=multi-user.target
+          dest: /home/chia/chia2.service
+          owner: chia
+          group: chia
+          mode: '0644'
+      - name: Link service file
+        file:
+          src: /home/chia/chia.service
+          dest: /etc/systemd/system/chia.service
+          state: link
+      - name: Link service file2
+        file:
+          src: /home/chia/chia2.service
+          dest: /etc/systemd/system/chia2.service
+          state: link
+      - name: Check if RAID0 device exists
+        command: /usr/sbin/mdadm --detail /dev/md0
+        register: md0_result
+        ignore_errors: true
+      - name: Mount HDDs
+        mount:
+          path: "/mnt/{{ item }}"
+          src: "/dev/{{ item }}"
+          fstype: xfs
+          state: mounted
+          opts: defaults,noatime
+        loop: '{{ plot_hard_disks }}'
+      - name: Mount Chia
+        mount:
+          path: "/mnt/chia"
+          src: "/mnt/sd*"
+          fstype: mergerfs
+          opts: allow_other,use_ino
+          state: mounted
+    
+      - name: Mount TMPFS
+        mount:
+          path: "/mnt/tmpfs"
+          src: "tmpfs"
+          fstype: tmpfs
+          state: mounted
+          opts: defaults,noatime,nosuid,nodev,noexec,mode=0755,size=110G
+
+      - name: Mount Process
+        mount:
+          path: "/mnt/process"
+          src: "/dev/md0"
+          fstype: ext4
+          state: mounted
+          opts: defaults,noatime
+
+      - name: Create swap file
+        command: |
+          dd if=/dev/zero of=/mnt/process/swapfile bs=1M count=133120
+      - name: Set swap permissions
+        file:
+          path: "/mnt/process/swapfile"
+          state: "file"
+          owner: "root"
+          group: "root"
+          mode: "0600"
+
+      - name: Initialize swap
+        command: |
+          swapon /mnt/process/swapfile
+      - name: Add swap to fstab
+        mount:
+          src: "/mnt/process/swapfile"
+          name: "none"
+          fstype: "swap"
+          opts: "sw,nofail"
+          dump: "0"
+          passno: "0"
+          state: "present"
