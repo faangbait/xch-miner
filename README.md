@@ -1,6 +1,6 @@
 # xch-miner
 
-first time setup to deploy chia miner onto an r730 server:
+first time setup to deploy chia miner onto an r730 server (note that this WILL probably wipe your boot disk and destroy your computer):
 
 ```bash
 cd ansible
